@@ -1,0 +1,764 @@
+<!-- The above lines were stray and duplicated below. Removed to fix DOM structure. -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Boles West Run Ranch — Expense Tracker</title>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <!-- Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+  <!-- SheetJS (Excel export) -->
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+
+  <!-- Tesseract.js (Receipt OCR) -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+
+  <!-- App Styles -->
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+
+  <!-- AUTH SCREEN REMOVED -->
+
+  <!-- MAIN APP (now always visible) -->
+  <div id="app-screen" class="screen active">
+
+    <!-- ─── TOP NAV ─── -->
+    <header class="top-bar full-width">
+      <div class="top-bar-left">
+        <button id="sidebar-toggle" class="btn-icon" aria-label="Toggle sidebar">
+          <i class="fa-solid fa-bars"></i>
+        </button>
+        <h1 class="app-title">
+          <i class="fa-solid fa-tractor"></i> Boles West Run Ranch
+        </h1>
+      </div>
+      <div class="top-bar-center">
+        <div class="accounts-bar">
+          <span class="accounts-label">Accounts:</span>
+          <div id="accounts-list">
+            <!-- Example accounts, to be dynamically rendered -->
+            <button class="account-btn active" data-account="all">All Accounts</button>
+            <button class="account-btn" data-account="Farm Checking">Farm Checking</button>
+            <button class="account-btn" data-account="Farm Savings">Farm Savings</button>
+            <button class="account-btn" data-account="Credit Card">Credit Card</button>
+          </div>
+          <button id="add-account-btn" class="btn btn-sm btn-outline" title="Add Account">
+            <i class="fa-solid fa-plus"></i> Add Account
+          </button>
+        </div>
+      </div>
+      <div class="top-bar-right">
+        <span id="sync-status" class="sync-badge" title="Cloud sync status">
+          <i class="fa-solid fa-cloud"></i> Synced
+        </span>
+        <!-- User menu removed (no authentication) -->
+      </div>
+    </header>
+
+    <div class="app-layout">
+
+      <!-- ─── SIDEBAR ─── -->
+      <aside id="sidebar" class="sidebar" aria-label="Main Navigation">
+        <button id="sidebar-collapse" class="sidebar-collapse-btn" aria-label="Collapse sidebar">
+          <i class="fa-solid fa-angle-left"></i>
+        </button>
+        <nav>
+          <ul class="nav-list">
+            <li><a href="#" class="nav-link" data-view="dashboard" tabindex="0"><i class="fa-solid fa-chart-line"></i> <span>Dashboard</span></a></li>
+            <li><a href="#" class="nav-link" data-view="expenses" tabindex="0"><i class="fa-solid fa-receipt"></i> <span>Expenses</span></a></li>
+            <li><a href="#" class="nav-link" data-view="add-expense" tabindex="0"><i class="fa-solid fa-circle-plus"></i> <span>Add Expense</span></a></li>
+            <li><a href="#" class="nav-link" data-view="receipt-scan" tabindex="0"><i class="fa-solid fa-camera"></i> <span>Scan Receipt</span></a></li>
+            <li><a href="#" class="nav-link" data-view="receipt-gallery" tabindex="0"><i class="fa-solid fa-images"></i> <span>Receipt Gallery</span></a></li>
+            <li><a href="#" class="nav-link" data-view="categories" tabindex="0"><i class="fa-solid fa-tags"></i> <span>Categories</span></a></li>
+            <li><a href="#" class="nav-link" data-view="reports" tabindex="0"><i class="fa-solid fa-file-invoice-dollar"></i> <span>Reports</span></a></li>
+            <li><a href="#" class="nav-link" data-view="tax-center" tabindex="0"><i class="fa-solid fa-landmark"></i> <span>Tax Center</span></a></li>
+          </ul>
+        </nav>
+        <div class="sidebar-footer">
+          <p class="version-tag">v1.0.0</p>
+        </div>
+      </aside>
+
+      <!-- ─── MAIN CONTENT ─── -->
+      <main class="main-content">
+
+        <!-- ════════════════════════════ -->
+        <!-- VIEW: DASHBOARD             -->
+        <!-- ════════════════════════════ -->
+        <section id="view-dashboard" class="view active">
+          <div class="view-header">
+            <h2>Dashboard</h2>
+            <div class="header-actions">
+                            <button type="button" class="btn btn-outline" id="add-test-data-btn">
+                              <i class="fa-solid fa-vial"></i> Add Test Data
+                            </button>
+
+                            <button type="button" class="btn btn-outline" id="remove-test-data-btn">
+                              <i class="fa-solid fa-eraser"></i> Remove Test Data
+                            </button>
+              <button class="btn btn-primary" id="save-sync-btn">
+                <i class="fa-solid fa-cloud-arrow-up"></i> Save & Sync
+              </button>
+              <select id="dash-period" class="input-sm">
+                <option value="month">This Month</option>
+                <option value="quarter">This Quarter</option>
+                <option value="year">This Year</option>
+                <option value="custom">Custom Range</option>
+              </select>
+              <div id="dash-custom-range" class="date-range hidden">
+                <input type="date" id="dash-start" class="input-sm" />
+                <span>to</span>
+                <input type="date" id="dash-end" class="input-sm" />
+                <button class="btn btn-sm" id="dash-apply-range">Apply</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Redesigned Dashboard Grid -->
+          <div class="dashboard-compact-grid single-col">
+            <div class="dashboard-main-col">
+              <div class="dashboard-summary">
+                <div class="stat-card">
+                  <div class="stat-icon bg-blue"><i class="fa-solid fa-dollar-sign"></i></div>
+                  <div class="stat-body">
+                    <p class="stat-label">Total Expenses</p>
+                    <p class="stat-value" id="stat-total">$0.00</p>
+                  </div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-icon bg-green"><i class="fa-solid fa-arrow-trend-down"></i></div>
+                  <div class="stat-body">
+                    <p class="stat-label">This Month</p>
+                    <p class="stat-value" id="stat-month">$0.00</p>
+                  </div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-icon bg-orange"><i class="fa-solid fa-receipt"></i></div>
+                  <div class="stat-body">
+                    <p class="stat-label">Transactions</p>
+                    <p class="stat-value" id="stat-count">0</p>
+                  </div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-icon bg-purple"><i class="fa-solid fa-calculator"></i></div>
+                  <div class="stat-body">
+                    <p class="stat-label">Avg per Transaction</p>
+                    <p class="stat-value" id="stat-avg">$0.00</p>
+                  </div>
+                </div>
+                <!-- Top Vendors Widget -->
+                <div id="top-vendors-widget" style="grid-column: span 4; margin-top: 1rem;"></div>
+              </div>
+              <div class="card dashboard-recent-card">
+                <div class="card-header">
+                  <h3>Recent Expenses</h3>
+                  <a href="#" class="nav-link-inline" data-view="expenses">View All →</a>
+                </div>
+                <table class="data-table" id="recent-expenses-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">Date</th>
+                      <th scope="col">Vendor</th>
+                      <th scope="col">Category</th>
+                      <th scope="col">Tax Line</th>
+                      <th scope="col" class="text-right">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody id="recent-expenses-body">
+                    <tr class="empty-row">
+                      <td colspan="5">No expenses yet — add one to get started.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="dashboard-charts">
+                <div class="dashboard-chart-card">
+                  <h3>Spending by Category</h3>
+                  <canvas id="chart-category"></canvas>
+                </div>
+                <div class="dashboard-chart-card">
+                  <h3>Spending by Account</h3>
+                  <canvas id="chart-accounts"></canvas>
+                </div>
+                <div class="dashboard-chart-card full-width">
+                  <h3>Monthly Trend</h3>
+                  <canvas id="chart-trend"></canvas>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ════════════════════════════ -->
+        <!-- VIEW: ALL EXPENSES          -->
+        <!-- ════════════════════════════ -->
+        <section id="view-expenses" class="view hidden">
+          <div class="view-header">
+            <h2>All Expenses</h2>
+            <div class="header-actions">
+              <button class="btn btn-primary" data-view="add-expense">
+                <i class="fa-solid fa-plus"></i> Add Expense
+              </button>
+              <button class="btn btn-outline" id="export-expenses-btn">
+                <i class="fa-solid fa-file-excel"></i> Export
+              </button>
+            </div>
+          </div>
+
+          <!-- Filters Bar -->
+          <div class="filters-bar card">
+            <div class="filter-group">
+              <label>Search</label>
+              <input type="text" id="filter-search" placeholder="Vendor, notes..." class="input-sm" />
+            </div>
+            <div class="filter-group">
+              <label>Category</label>
+              <select id="filter-category" class="input-sm">
+                <option value="">All Categories</option>
+              </select>
+            </div>
+            <div class="filter-group">
+              <label>Tax Line</label>
+              <select id="filter-tax-line" class="input-sm">
+                <option value="">All Tax Lines</option>
+              </select>
+            </div>
+            <div class="filter-group">
+              <label>Date Range</label>
+              <input type="date" id="filter-date-start" class="input-sm" />
+              <span>to</span>
+              <input type="date" id="filter-date-end" class="input-sm" />
+            </div>
+            <div class="filter-group">
+              <label>Amount</label>
+              <input type="number" id="filter-amount-min" placeholder="Min" class="input-sm input-narrow" />
+              <span>–</span>
+              <input type="number" id="filter-amount-max" placeholder="Max" class="input-sm input-narrow" />
+            </div>
+            <button class="btn btn-sm" id="clear-filters-btn">
+              <i class="fa-solid fa-xmark"></i> Clear
+            </button>
+          </div>
+
+          <!-- Expenses Table -->
+          <div class="card table-responsive">
+            <table class="data-table sortable" id="expenses-table">
+              <thead>
+                <tr>
+                  <th scope="col"><input type="checkbox" id="select-all-expenses" aria-label="Select all expenses" /></th>
+                  <th scope="col" data-sort="date" aria-sort="descending">Date <i class="fa-solid fa-sort" aria-hidden="true"></i></th>
+                  <th scope="col" data-sort="vendor">Vendor <i class="fa-solid fa-sort" aria-hidden="true"></i></th>
+                  <th scope="col" data-sort="category">Category <i class="fa-solid fa-sort" aria-hidden="true"></i></th>
+                  <th scope="col" data-sort="tax_line">Tax Line <i class="fa-solid fa-sort" aria-hidden="true"></i></th>
+                  <th scope="col" data-sort="payment">Payment</th>
+                  <th scope="col" data-sort="amount" class="text-right">Amount <i class="fa-solid fa-sort" aria-hidden="true"></i></th>
+                  <th scope="col">Receipt</th>
+                  <th scope="col">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="expenses-body">
+                <tr class="empty-row">
+                  <td colspan="9">No expenses found.</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <!-- Pagination -->
+            <div class="pagination">
+              <button class="btn btn-sm" id="prev-page" disabled>← Prev</button>
+              <span id="page-info">Page 1</span>
+              <button class="btn btn-sm" id="next-page" disabled>Next →</button>
+            </div>
+          </div>
+
+          <!-- Bulk Actions (shown when rows selected) -->
+          <div id="bulk-actions" class="bulk-bar hidden">
+            <span id="selected-count">0 selected</span>
+            <button class="btn btn-sm btn-danger" id="bulk-delete">
+              <i class="fa-solid fa-trash"></i> Delete
+            </button>
+            <button class="btn btn-sm" id="bulk-recategorize">
+              <i class="fa-solid fa-tags"></i> Re-categorize
+            </button>
+            <button class="btn btn-sm" id="bulk-edit">
+              <i class="fa-solid fa-pen"></i> Bulk Edit
+            </button>
+            <button class="btn btn-sm" id="bulk-assign-tax">
+              <i class="fa-solid fa-landmark"></i> Assign Tax Line
+            </button>
+            <button class="btn btn-sm" id="bulk-export">
+              <i class="fa-solid fa-download"></i> Export Selected
+            </button>
+          </div>
+        </section>
+
+        <!-- ════════════════════════════ -->
+        <!-- VIEW: ADD / EDIT EXPENSE    -->
+        <!-- ════════════════════════════ -->
+        <section id="view-add-expense" class="view hidden">
+          <div class="view-header">
+            <h2 id="expense-form-title">Add Expense</h2>
+             <div class="header-actions">
+               <button type="button" class="btn btn-primary" id="save-sync-btn-expense">
+                 <i class="fa-solid fa-cloud-arrow-up"></i> Save & Sync
+               </button>
+             </div>
+          </div>
+
+          <form id="expense-form" class="card form-card">
+
+            <input type="hidden" id="expense-id" />
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="exp-date">Date <span aria-hidden="true" style="color:var(--red)">*</span></label>
+                <input type="date" id="exp-date" name="exp-date" required aria-required="true" aria-label="Expense date" autocomplete="off" />
+              </div>
+              <div class="form-group">
+                <label for="exp-vendor">Vendor / Payee <span aria-hidden="true" style="color:var(--red)">*</span></label>
+                <input type="text" id="exp-vendor" name="exp-vendor" required aria-required="true" aria-label="Vendor or payee" placeholder="Tractor Supply Co." list="vendor-suggestions" autocomplete="off" />
+                <datalist id="vendor-suggestions"></datalist>
+                <small id="exp-vendor-help" class="info-text">Start typing for suggestions.</small>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="exp-amount">Amount <span aria-hidden="true" style="color:var(--red)">*</span></label>
+                <div class="input-with-prefix">
+                  <span class="prefix">$</span>
+                  <input type="number" id="exp-amount" name="exp-amount" required aria-required="true" min="0" step="0.01" placeholder="0.00" aria-label="Expense amount" inputmode="decimal" />
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="exp-payment">Payment Method</label>
+                <select id="exp-payment" name="exp-payment" aria-label="Payment method">
+                  <option value="card">Debit/Credit Card</option>
+                  <option value="check">Check</option>
+                  <option value="cash">Cash</option>
+                  <option value="transfer">Bank Transfer</option>
+                  <option value="credit">Store Credit / Account</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="exp-op-category">Operational Category <span aria-hidden="true" style="color:var(--red)">*</span></label>
+                <select id="exp-op-category" name="exp-op-category" required aria-required="true" aria-label="Operational category">
+                  <option value="">Select category...</option>
+                  <!-- Populated by config.js -->
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="exp-tax-line">IRS Tax Line (Schedule F)</label>
+                <select id="exp-tax-line" name="exp-tax-line" aria-label="IRS tax line">
+                  <option value="">Auto-detect</option>
+                  <!-- Populated by config.js -->
+                </select>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="exp-subcategory">Subcategory</label>
+                <select id="exp-subcategory" name="exp-subcategory" aria-label="Subcategory">
+                  <option value="">None</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="exp-check-num">Check # / Ref</label>
+                <input type="text" id="exp-check-num" name="exp-check-num" placeholder="Optional" aria-label="Check number or reference" />
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="exp-description">Description / Notes</label>
+              <textarea id="exp-description" name="exp-description" rows="3" placeholder="Additional details..." aria-label="Description or notes"></textarea>
+            </div>
+
+            <div class="form-group">
+              <label for="exp-tags">Tags</label>
+              <input type="text" id="exp-tags" name="exp-tags" placeholder="Comma-separated: hay, pasture-A, Q2" aria-label="Tags" />
+              <small class="info-text">Separate tags with commas for better search and filtering.</small>
+            </div>
+
+            <!-- Receipt Attachment -->
+            <div class="form-group">
+              <label>Receipt Image</label>
+              <div class="receipt-upload-zone" id="receipt-drop-zone">
+                <i class="fa-solid fa-cloud-arrow-up"></i>
+                <p>Drag & drop a receipt image or <label for="receipt-file-input" class="link">browse</label></p>
+                <input type="file" id="receipt-file-input" accept="image/*,.pdf" class="hidden" multiple />
+              </div>
+              <div id="receipt-preview" class="receipt-preview hidden">
+                <img id="receipt-thumb" alt="Receipt preview" />
+                <button type="button" class="btn btn-sm btn-danger" id="remove-receipt">
+                  <i class="fa-solid fa-xmark"></i> Remove
+                </button>
+              </div>
+            </div>
+
+            <!-- Auto-categorization Suggestion Banner -->
+            <div id="auto-cat-suggestion" class="suggestion-banner hidden">
+              <i class="fa-solid fa-wand-magic-sparkles"></i>
+              <span id="auto-cat-text">Suggested: <strong></strong></span>
+              <button type="button" class="btn btn-sm btn-primary" id="accept-suggestion">Accept</button>
+              <button type="button" class="btn btn-sm" id="dismiss-suggestion">Dismiss</button>
+            </div>
+
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary">
+                <i class="fa-solid fa-floppy-disk"></i> Save Expense
+              </button>
+              <button type="button" class="btn btn-outline" id="save-and-new">
+                <i class="fa-solid fa-plus"></i> Save & Add Another
+              </button>
+              <button type="button" class="btn btn-primary" id="save-sync-btn-expense">
+                <i class="fa-solid fa-cloud-arrow-up"></i> Save & Sync
+              </button>
+              <button type="button" class="btn btn-ghost" id="cancel-expense">Cancel</button>
+            </div>
+          </form>
+        </section>
+
+        <!-- ════════════════════════════ -->
+        <!-- VIEW: RECEIPT SCANNER       -->
+        <!-- ════════════════════════════ -->
+        <section id="view-receipt-scan" class="view hidden">
+          <div class="view-header">
+            <h2>Scan Receipt</h2>
+             <div class="header-actions">
+               <button type="button" class="btn btn-primary" id="save-sync-btn-ocr">
+                 <i class="fa-solid fa-cloud-arrow-up"></i> Save & Sync
+               </button>
+             </div>
+          </div>
+
+          <div class="card">
+            <p class="info-text">
+              Upload a receipt image. OCR will extract vendor, date, line items, and total.
+              You can review and edit before saving.
+            </p>
+
+            <div class="receipt-upload-zone large" id="ocr-drop-zone">
+              <i class="fa-solid fa-camera-retro"></i>
+              <p>Drop receipt image here or <label for="ocr-file-input" class="link">choose file</label></p>
+              <input type="file" id="ocr-file-input" accept="image/*,.pdf" class="hidden" multiple />
+            </div>
+
+            <!-- OCR Progress -->
+            <div id="ocr-progress" class="hidden">
+              <div class="progress-bar">
+                <div class="progress-fill" id="ocr-progress-fill"></div>
+              </div>
+              <p id="ocr-status-text">Initializing OCR engine...</p>
+            </div>
+
+            <!-- OCR Results -->
+            <div id="ocr-results" class="hidden">
+              <h3>Extracted Data</h3>
+              <div class="ocr-results-grid">
+                <div class="ocr-preview-col">
+                  <img id="ocr-preview-img" alt="Receipt" />
+                </div>
+                <div class="ocr-data-col">
+                  <div class="form-group">
+                    <label>Vendor</label>
+                    <input type="text" id="ocr-vendor" />
+                  </div>
+                  <div class="form-group">
+                    <label>Date</label>
+                    <input type="date" id="ocr-date" />
+                  </div>
+                  <div class="form-group">
+                    <label>Total</label>
+                    <input type="number" id="ocr-total" step="0.01" />
+                  </div>
+                  <div class="form-group">
+                    <label>Suggested Category</label>
+                    <input type="text" id="ocr-category" readonly />
+                  </div>
+                  <div class="form-group">
+                    <label>Raw Text</label>
+                    <textarea id="ocr-raw-text" rows="6" readonly></textarea>
+                  </div>
+
+                  <!-- Line Items -->
+                  <h4>Line Items</h4>
+                  <table class="data-table" id="ocr-line-items-table">
+                    <thead>
+                      <tr><th>Item</th><th>Qty</th><th class="text-right">Price</th></tr>
+                    </thead>
+                    <tbody id="ocr-line-items-body"></tbody>
+                  </table>
+
+                  <div class="form-actions">
+                    <button class="btn btn-primary" id="ocr-create-expense">
+                      <i class="fa-solid fa-plus"></i> Create Expense
+                    </button>
+                    <button class="btn btn-primary" id="save-sync-btn-ocr">
+                      <i class="fa-solid fa-cloud-arrow-up"></i> Save & Sync
+                    </button>
+                    <button class="btn btn-outline" id="ocr-discard">Discard</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ════════════════════════════ -->
+        <!-- VIEW: CATEGORIES            -->
+        <!-- ════════════════════════════ -->
+        <section id="view-categories" class="view hidden">
+          <div class="view-header">
+            <h2>Categories & Tax Mapping</h2>
+          </div>
+
+          <div class="two-col-layout">
+            <!-- Operational Categories -->
+            <div class="card">
+              <div class="card-header">
+                <h3>Operational Categories</h3>
+                <button class="btn btn-sm btn-primary" id="add-op-category-btn">
+                  <i class="fa-solid fa-plus"></i> Add
+                </button>
+              </div>
+              <table class="data-table" id="op-categories-table">
+                <thead>
+                  <tr>
+                    <th>Category</th>
+                    <th>Subcategories</th>
+                    <th>Tax Line Mapping</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="op-categories-body"></tbody>
+              </table>
+            </div>
+
+            <!-- IRS Schedule F Tax Lines -->
+            <div class="card">
+              <div class="card-header">
+                <h3>IRS Schedule F Tax Lines</h3>
+              </div>
+              <table class="data-table" id="tax-lines-table">
+                <thead>
+                  <tr>
+                    <th>Line #</th>
+                    <th>Description</th>
+                    <th>Mapped Categories</th>
+                  </tr>
+                </thead>
+                <tbody id="tax-lines-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ════════════════════════════ -->
+        <!-- VIEW: REPORTS               -->
+        <!-- ════════════════════════════ -->
+        <section id="view-reports" class="view hidden">
+          <div class="view-header">
+            <h2>Reports</h2>
+            <div class="header-actions">
+              <select id="report-type" class="input-sm">
+                <option value="summary">Expense Summary</option>
+                <option value="category">By Category</option>
+                <option value="vendor">By Vendor</option>
+                <option value="monthly">Monthly Breakdown</option>
+                <option value="comparison">Year-over-Year</option>
+              </select>
+              <select id="report-year" class="input-sm"></select>
+              <button class="btn btn-primary" id="generate-report-btn">
+                <i class="fa-solid fa-chart-bar"></i> Generate
+              </button>
+              <button class="btn btn-outline" id="export-report-btn">
+                <i class="fa-solid fa-file-excel"></i> Export to Excel
+              </button>
+            </div>
+          </div>
+
+          <div id="report-output" class="card">
+            <p class="info-text">Select a report type and click Generate.</p>
+          </div>
+
+          <div id="report-chart-container" class="card hidden">
+            <canvas id="report-chart"></canvas>
+          </div>
+        </section>
+
+        <!-- ════════════════════════════ -->
+        <!-- VIEW: TAX CENTER            -->
+        <!-- ════════════════════════════ -->
+        <section id="view-tax-center" class="view hidden">
+          <div class="view-header">
+            <h2>Tax Center — Schedule F</h2>
+            <div class="header-actions">
+              <select id="tax-year" class="input-sm"></select>
+              <button class="btn btn-primary" id="generate-tax-report-btn">
+                <i class="fa-solid fa-landmark"></i> Generate Tax Report
+              </button>
+              <button class="btn btn-outline" id="export-tax-report-btn">
+                <i class="fa-solid fa-file-excel"></i> Export for Accountant
+              </button>
+            </div>
+          </div>
+
+          <!-- Schedule F Summary -->
+          <div class="card" id="tax-report-output">
+            <h3>Schedule F Expense Summary</h3>
+            <table class="data-table" id="schedule-f-table">
+              <thead>
+                <tr>
+                  <th>Line #</th>
+                  <th>IRS Description</th>
+                  <th class="text-right">Total</th>
+                  <th class="text-right">Transactions</th>
+                </tr>
+              </thead>
+              <tbody id="schedule-f-body">
+                <tr class="empty-row">
+                  <td colspan="4">Select a tax year and generate the report.</td>
+                </tr>
+              </tbody>
+              <tfoot>
+                <tr class="total-row">
+                  <td colspan="2"><strong>Total Farm Expenses</strong></td>
+                  <td class="text-right"><strong id="schedule-f-total">$0.00</strong></td>
+                  <td></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+
+          <!-- Unmapped Expenses Warning -->
+          <div id="unmapped-warning" class="card warning-card hidden">
+            <h3><i class="fa-solid fa-triangle-exclamation"></i> Unmapped Expenses</h3>
+            <p>The following expenses don't have a tax line assigned:</p>
+            <table class="data-table">
+              <thead>
+                <tr><th>Date</th><th>Vendor</th><th>Category</th><th class="text-right">Amount</th><th>Action</th></tr>
+              </thead>
+              <tbody id="unmapped-expenses-body"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- ════════════════════════════ -->
+        <!-- VIEW: SETTINGS              -->
+        <!-- ════════════════════════════ -->
+        <section id="view-settings" class="view hidden">
+          <div class="view-header"><h2>Settings</h2></div>
+          <div class="card form-card">
+            <h3>Farm Profile</h3>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="farm-name">Farm / Ranch Name</label>
+                <input type="text" id="farm-name" value="Boles West Run Ranch" />
+              </div>
+              <div class="form-group">
+                <label for="farm-ein">EIN (optional)</label>
+                <input type="text" id="farm-ein" placeholder="XX-XXXXXXX" />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="fiscal-year-start">Fiscal Year Start</label>
+                <select id="fiscal-year-start">
+                  <option value="1">January</option>
+                  <option value="4">April</option>
+                  <option value="7">July</option>
+                  <option value="10">October</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="default-payment">Default Payment Method</label>
+                <select id="default-payment">
+                  <option value="card">Debit/Credit Card</option>
+                  <option value="check">Check</option>
+                  <option value="cash">Cash</option>
+                </select>
+              </div>
+            </div>
+            <button class="btn btn-primary" id="save-settings-btn">
+              <i class="fa-solid fa-floppy-disk"></i> Save Settings
+            </button>
+          </div>
+        </section>
+
+        <!-- ════════════════════════════ -->
+        <!-- VIEW: USER MANAGEMENT       -->
+        <!-- ════════════════════════════ -->
+        <section id="view-manage-users" class="view hidden">
+          <div class="view-header">
+            <h2>Manage Users</h2>
+            <button class="btn btn-primary" id="invite-user-btn">
+              <i class="fa-solid fa-user-plus"></i> Invite User
+            </button>
+          </div>
+          <div class="card">
+            <table class="data-table" id="users-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Role</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="users-body"></tbody>
+            </table>
+          </div>
+        </section>
+
+      </main>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- MODALS                                      -->
+  <!-- ═══════════════════════════════════════════ -->
+  <div id="modal-overlay" class="modal-overlay hidden" aria-hidden="true">
+    <div class="modal" id="modal-container" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div class="modal-header">
+        <h3 id="modal-title">Modal</h3>
+        <button class="btn-icon modal-close" id="modal-close" aria-label="Close dialog">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div class="modal-body" id="modal-body"></div>
+      <div class="modal-footer" id="modal-footer"></div>
+    </div>
+  </div>
+
+  <!-- Toast / Notification Container -->
+  <div id="toast-container" class="toast-container" role="status" aria-live="polite"></div>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- APP SCRIPTS (loaded as modules)             -->
+  <!-- ═══════════════════════════════════════════ -->
+  <script src="config.js" defer></script>
+  <script src="db.js" defer></script>
+  <script src="auth.js" defer></script>
+  <script src="ocr.js" defer></script>
+  <script src="categorization.js" defer></script>
+  <script src="reports.js" defer></script>
+  <script src="app.js" defer></script>
+
+</body>
+</html>
